@@ -80,12 +80,12 @@ Install required packages:
 ```bash
 conda install -c conda-forge ffmpeg==4.2.2
 conda install -c conda-forge sox
-pip install -r requirements.txt
+uv sync
 ```
 
 Then get audio-visual speech recognition and translation data via
 ```bash
-python get_data.py --root-path ${ROOT} --src-lang ${SRC_LANG}
+uv run get_data.py --root-path ${ROOT} --src-lang ${SRC_LANG}
 ```
 where the speech language `${SRC_LANG}` is one of `en`, `ar`, `de`, `el`, `es`, `fr`, `it`, `pt` and `ru`.
 
