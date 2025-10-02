@@ -125,19 +125,26 @@ def download_video_from_youtube(download_path, yt_id):
     """Downloads a video from YouTube given its id on YouTube"""
     video_out_path = download_path / f"{yt_id}.mp4"
     if video_out_path.exists():
-        downloaded = True
-    else:
-        url = f"https://www.youtube.com/watch?v={yt_id}"
-        # downloads the best `mp4` audio/video resolution.
-        # TODO: download only video (no audio)
-        ydl_opts = {"quiet": True, "format": "mp4", "outtmpl": str(video_out_path)}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
-                ydl.download([url])
-                downloaded = True
-            except yt_dlp.utils.DownloadError:
-                downloaded = False
-    return downloaded
+        return True
+
+    url = f"https://www.youtube.com/watch?v={yt_id}"
+    # downloads the best `mp4` audio/video resolution.
+    # TODO: download only video (no audio)
+    format_selector = (
+        "bestvideo[ext=mp4][height<=720]+bestaudio/best[ext=mp4][height<=720]/best"
+    )
+    ydl_opts = {
+        "quiet": True,
+        "format": format_selector,
+        "outtmpl": str(video_out_path),
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            ydl.download([url])
+            return True
+        except yt_dlp.utils.DownloadError:
+            return False
 
 
 # def save_video(frames, out_filepath, fps):
