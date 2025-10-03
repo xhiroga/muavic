@@ -31,7 +31,7 @@ def download_mtedx_data(download_path, src, tgt):
     )
 
 
-def download_mtedx_lang_videos(mtedx_path, src_lang, max_workers=None):
+def download_mtedx_lang_videos(mtedx_path, src_lang, max_workers=1):
     # keep track of non-found videos on YouTube
     try:
         not_found_videos = set(read_txt_file(mtedx_path / "not_found_videos.txt"))
@@ -41,26 +41,31 @@ def download_mtedx_lang_videos(mtedx_path, src_lang, max_workers=None):
     for split in SPLITS:
         out_path = mtedx_path / "video" / src_lang / split
         out_path.mkdir(parents=True, exist_ok=True)
-        if is_empty(out_path): #TODO: better check
-            if split == "train":
-                print(f"\nDownloading {src_lang} videos from YouTube")
-            # get youtube-ids from audio filenames inside `wav` directory
-            wav_dir_path = (
-                mtedx_path / f"{src_lang}-{src_lang}" / "data" / split / "wav"
-            )
-            yt_ids = [wav_filepath.stem for wav_filepath in wav_dir_path.glob("*")]
-            # download videos from YouTube
-            downloading_status = process_map(
-                partial(download_video_from_youtube, out_path),
-                yt_ids,
-                max_workers=max_workers,
-                desc=f"Downloading {src_lang}/{split} Videos",
-                chunksize=1,
-            )
-            assert len(yt_ids) == len(downloading_status)
-            for yt_id, downloaded in zip(yt_ids, downloading_status):
-                if not downloaded:
-                    not_found_videos.add(yt_id)
+        # get youtube-ids from audio filenames inside `wav` directory
+        wav_dir_path = (
+            mtedx_path / f"{src_lang}-{src_lang}" / "data" / split / "wav"
+        )
+        yt_ids = [wav_filepath.stem for wav_filepath in wav_dir_path.glob("*")]
+        missing_ids = [
+            yt_id for yt_id in yt_ids if not (out_path / f"{yt_id}.mp4").exists()
+        ]
+        if not missing_ids:
+            continue
+        if split == "train":
+            print(f"\nDownloading {src_lang} videos from YouTube")
+        # download videos from YouTube
+        max_workers = max(int(max_workers), 1)
+        downloading_status = process_map(
+            partial(download_video_from_youtube, out_path),
+            missing_ids,
+            max_workers=max_workers,
+            desc=f"Downloading {src_lang}/{split} Videos",
+            chunksize=1,
+        )
+        assert len(missing_ids) == len(downloading_status)
+        for yt_id, downloaded in zip(missing_ids, downloading_status):
+            if not downloaded:
+                not_found_videos.add(yt_id)
     with open(mtedx_path / "not_found_videos.txt", "w") as fout:
         fout.writelines([f"{id_}\n" for id_ in not_found_videos])
 
@@ -80,7 +85,7 @@ def segment_normalize_audio_file(out_dir, in_file_info):
     tfm.build_file(str(in_filepath), str(out_filepath))
 
 
-def preprocess_mtedx_audio(mtedx_path, src_lang, muavic_path, max_workers=None):
+def preprocess_mtedx_audio(mtedx_path, src_lang, muavic_path, max_workers=1):
     for split in SPLITS:
         split_dir_path = mtedx_path / f"{src_lang}-{src_lang}" / "data" / split
         audio_segments = list(read_txt_file(split_dir_path / "txt" / "segments"))
@@ -155,7 +160,7 @@ def segment_normalize_video(mean_face_metadata, in_path, out_path, seg_info):
     save_video(frames, out_filepath, fps)
 
 
-def preprocess_mtedx_video(mtedx_path, metadata_path, src_lang, muavic_path, max_workers=None):
+def preprocess_mtedx_video(mtedx_path, metadata_path, src_lang, muavic_path, max_workers=1):
     mean_face_metadata = load_meanface_metadata(metadata_path)
     for split in SPLITS:
         split_dir_path = mtedx_path / f"{src_lang}-{src_lang}" / "data" / split
@@ -257,7 +262,7 @@ def get_mtedx_fileids(segment_filepath):
     return fids
 
 
-def prepare_mtedx_avsr_manifests(mtedx_path, lang, muavic_path, max_workers=None):
+def prepare_mtedx_avsr_manifests(mtedx_path, lang, muavic_path, max_workers=1):
     for split in SPLITS:
         out_manifest_filepath = muavic_path / lang / f"{split}.tsv"
         if not out_manifest_filepath.exists():
