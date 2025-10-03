@@ -136,7 +136,7 @@ def download_video_from_youtube(download_path, yt_id):
     ydl_opts = {
         "quiet": True,
         "format": format_selector,
-        "outtmpl": str(video_out_path),
+        "outtmpl": str(download_path / f"{yt_id}.%(ext)s"),
         "postprocessors": [
             {"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}
         ],
