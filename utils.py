@@ -137,6 +137,9 @@ def download_video_from_youtube(download_path, yt_id):
         "quiet": True,
         "format": format_selector,
         "outtmpl": str(video_out_path),
+        "postprocessors": [
+            {"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}
+        ],
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
