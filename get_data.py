@@ -4,6 +4,8 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 import argparse
+import os
+import shutil
 from pathlib import Path
 
 from mtedx_utils import *
@@ -17,18 +19,28 @@ def prepare_mtedx(args):
         download_mtedx_data(args["mtedx"], args["src_lang"], "en")
 
     # download mTEDx videos
-    download_mtedx_lang_videos(args["mtedx"], args["src_lang"])
+    download_mtedx_lang_videos(
+        args["mtedx"], args["src_lang"], max_workers=args["num_workers"]
+    )
 
     # pre-process audio files
-    preprocess_mtedx_audio(args["mtedx"], args["src_lang"], args["muavic"])
+    preprocess_mtedx_audio(
+        args["mtedx"], args["src_lang"], args["muavic"], max_workers=args["num_workers"]
+    )
 
     # process video files
     preprocess_mtedx_video(
-        args["mtedx"], args["metadata"], args["src_lang"], args["muavic"]
+        args["mtedx"],
+        args["metadata"],
+        args["src_lang"],
+        args["muavic"],
+        max_workers=args["num_workers"],
     )
 
     # prepare AVSR manifests
-    prepare_mtedx_avsr_manifests(args["mtedx"], args["src_lang"], args["muavic"])
+    prepare_mtedx_avsr_manifests(
+        args["mtedx"], args["src_lang"], args["muavic"], max_workers=args["num_workers"]
+    )
 
     # prepare AVST manifests
     if args["src_lang"] not in {"ar", "de"}:
@@ -69,6 +81,12 @@ def prepare_lrs3(args):
 
 
 def main(args):
+    # normalize worker count to avoid overloading machines by default
+    num_workers = args.get("num_workers")
+    if num_workers is None or num_workers < 1:
+        num_workers = 1
+    args["num_workers"] = min(num_workers, 4)
+
     # created needed directories
     dirs = ["muavic", "mtedx", "ted2020", "metadata", "mt_trans", "lrs3"]
     for dirname in dirs:
@@ -107,8 +125,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--num-workers",
-        default=os.cpu_count(),
-        help="Max number of workers to be used in parallel.",
+        type=int,
+        default=os.cpu_count() or 1,
+        help="Max number of parallel workers (capped to 4 unless overridden here).",
     )
 
     args = vars(parser.parse_args())

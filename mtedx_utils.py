@@ -31,7 +31,7 @@ def download_mtedx_data(download_path, src, tgt):
     )
 
 
-def download_mtedx_lang_videos(mtedx_path, src_lang):
+def download_mtedx_lang_videos(mtedx_path, src_lang, max_workers=None):
     # keep track of non-found videos on YouTube
     try:
         not_found_videos = set(read_txt_file(mtedx_path / "not_found_videos.txt"))
@@ -53,7 +53,7 @@ def download_mtedx_lang_videos(mtedx_path, src_lang):
             downloading_status = process_map(
                 partial(download_video_from_youtube, out_path),
                 yt_ids,
-                max_workers=os.cpu_count(),
+                max_workers=max_workers,
                 desc=f"Downloading {src_lang}/{split} Videos",
                 chunksize=1,
             )
@@ -80,7 +80,7 @@ def segment_normalize_audio_file(out_dir, in_file_info):
     tfm.build_file(str(in_filepath), str(out_filepath))
 
 
-def preprocess_mtedx_audio(mtedx_path, src_lang, muavic_path):
+def preprocess_mtedx_audio(mtedx_path, src_lang, muavic_path, max_workers=None):
     for split in SPLITS:
         split_dir_path = mtedx_path / f"{src_lang}-{src_lang}" / "data" / split
         audio_segments = list(read_txt_file(split_dir_path / "txt" / "segments"))
@@ -111,7 +111,7 @@ def preprocess_mtedx_audio(mtedx_path, src_lang, muavic_path):
         process_map(
             partial(segment_normalize_audio_file, out_path),
             segments_info,
-            max_workers=os.cpu_count(),
+            max_workers=max_workers,
             desc=f"Preprocessing {src_lang}/{split} Audios",
             chunksize=1,
         )
@@ -155,7 +155,7 @@ def segment_normalize_video(mean_face_metadata, in_path, out_path, seg_info):
     save_video(frames, out_filepath, fps)
 
 
-def preprocess_mtedx_video(mtedx_path, metadata_path, src_lang, muavic_path):
+def preprocess_mtedx_video(mtedx_path, metadata_path, src_lang, muavic_path, max_workers=None):
     mean_face_metadata = load_meanface_metadata(metadata_path)
     for split in SPLITS:
         split_dir_path = mtedx_path / f"{src_lang}-{src_lang}" / "data" / split
@@ -241,7 +241,7 @@ def preprocess_mtedx_video(mtedx_path, metadata_path, src_lang, muavic_path):
                     out_seg_path,
                 ),
                 video_segments,
-                max_workers=min(len(video_segments), os.cpu_count()),
+                max_workers=max_workers,
                 chunksize=1,
                 disable=True,  # disables progress bar
             )
@@ -257,7 +257,7 @@ def get_mtedx_fileids(segment_filepath):
     return fids
 
 
-def prepare_mtedx_avsr_manifests(mtedx_path, lang, muavic_path):
+def prepare_mtedx_avsr_manifests(mtedx_path, lang, muavic_path, max_workers=None):
     for split in SPLITS:
         out_manifest_filepath = muavic_path / lang / f"{split}.tsv"
         if not out_manifest_filepath.exists():
@@ -273,7 +273,7 @@ def prepare_mtedx_avsr_manifests(mtedx_path, lang, muavic_path):
                     partial(get_audio_video_info, audio_datapath, video_datapath),
                     fileids,
                     desc=f"Creating {lang}/{split} manifest",
-                    max_workers=os.cpu_count(),
+                    max_workers=max_workers,
                     chunksize=1,
                 )
             )
